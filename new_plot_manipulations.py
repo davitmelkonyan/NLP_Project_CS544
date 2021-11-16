@@ -7,6 +7,7 @@ def contradiction_repetition():
     return
 
 
+
 def plot_manipulation_loop():
     # do a subset of plot manipulations 
     # get the new implausible output story
