@@ -344,30 +344,34 @@ class Plt_manipulations():
 			new_plots = '\t'.join(new_plots.split('\t')[1:])
 		return new_plots
 
+	###### SARIK'S METHODS ^^^^^^^^ ######
+	######   OUR METHODS   VVVVVVVV #######
 	def insert_antonym_2(self, plots):
 		sents_plots = plots.split('#')
-		new_sents_plots = sents_plots
+		new_sents_plots = []
+
 		plots_with_antonyms = []
-		plts_positions_sents = {} 
 		for ind, sent_plots in enumerate(sents_plots):
 			sent_plots = sent_plots.strip().split('\t')
 			sent_plots = [i for i in sent_plots if i]
 			for plt in sent_plots:
 				if plt in list(self.plt_antonyms.keys()) and plt not in plots_with_antonyms:
-					plots_with_antonyms.append(plt) 
-					plts_positions_sents[plt]=ind
-		num_plt_to_add = math.ceil((5*len(plots_with_antonyms)) / 100)
-		random_plts = np.random.choice(plots_with_antonyms, size=num_plt_to_add, replace=False)
-		
-		for plt in random_plts:
-			antonyms = []
-			sent_plots = sent_plots.strip().split('\t')
-			sent_plots = [i for i in sent_plots if i]
-			for plt in sent_plots:
+					plots_with_antonyms.append(ind) 
+					break
 
-			antonym_plt = np.random.choice(self.plt_antonyms[plt], size=1, replace=False)[0]
-			position_ind = new_sents_plots[plts_positions_sents[plt]].split('\t').index(plt)
-			new_sents_plots[plts_positions_sents[plt]] = '\t'.join(new_sents_plots[plts_positions_sents[plt]].split('\t')[:position_ind]) + '\t' + antonym_plt +'\t' + '\t'.join(new_sents_plots[plts_positions_sents[plt]].split('\t')[position_ind:])
+		num_plt_to_add = math.ceil((50*len(plots_with_antonyms)) / 100)
+		random_plts = np.random.choice(plots_with_antonyms, size=num_plt_to_add, replace=False) #np.arange(1,len(sents_plots)-1)
+		#print("RANDOM PLOTS: ",random_plts)
+		checkpoint = 0
+		for plot_index in random_plts:
+			new_sents_plots.extend(sents_plots[checkpoint:plot_index])
+			plots = sents_plots[plot_index].strip().split('\t')
+			plots = [i for i in plots if i]
+			antonyms = [np.random.choice(self.plt_antonyms.get(plt,[plt]),size=1,replace=False)[0] for plt in plots]
+			antonyms = '\t'.join(antonyms)
+			new_sents_plots.extend([antonyms,sents_plots[plot_index],antonyms])
+			checkpoint = plot_index+1
+		new_sents_plots.extend(sents_plots[checkpoint:])
 		new_plots = '#'.join(new_sents_plots)	
 		if new_plots.startswith('\t'):
 			new_plots = '\t'.join(new_plots.split('\t')[1:])
@@ -399,7 +403,7 @@ if __name__=="__main__":
 	plt_changes = Plt_manipulations(args.COMET_model_file, args.COMET_sampling_algorithm, args.device)
 	
 	num_gens= 1
-	output_file = args.fname +'_manipulated_plts'
+	output_file = args.fname +'_manipulated_plts_NEW'
 	if not os.path.isdir(args.data_dir+'ManPlts/'):
 		os.mkdir(args.data_dir+'ManPlts/')
 	fw_plts = open(os.path.join(args.data_dir+'ManPlts/', output_file), 'w')
@@ -407,14 +411,14 @@ if __name__=="__main__":
 	
 	for ind, story_plots in enumerate(set_plots):
 		print('******************{}****************'.format(ind))
-		print('STORY PLOTS:\t'+story_plots)
-		print('STORY:\t'+stories[ind])
+		print('STORY PLOTS:\t'+story_plots,"\n")
+		print('STORY:\t'+stories[ind],"\n")
 		for i in range(num_gens):
 			manipulated_story_plts = story_plots
-			num_changes = np.random.choice([1,2], size=1, replace=False)[0]	
-			ind_technique_apply = np.random.choice([0,1], size=num_changes, replace=False)
+			num_changes = np.random.choice([1], size=1, replace=False)[0]	
+			ind_technique_apply = np.random.choice([4], size=num_changes, replace=False)
 			print('number of changes {}'.format(num_changes))
-			print('the techniques to apply is {}'.format(ind_technique_apply))
+			print('the techniques to apply is {}\n'.format(ind_technique_apply))
 			for tech_ind in ind_technique_apply:
 				if tech_ind ==0:
 					manipulated_story_plts = plt_changes.insert_antonym(manipulated_story_plts)
@@ -428,7 +432,10 @@ if __name__=="__main__":
 				elif tech_ind ==3:
 					manipulated_story_plts = plt_changes.plt_random_insertion(manipulated_story_plts, set_plots)
 					print('after random isertion {}'.format(manipulated_story_plts))
-			print(manipulated_story_plts)
+				elif tech_ind ==4:
+					manipulated_story_plts = plt_changes.insert_antonym_2(manipulated_story_plts)
+					print('after antonym insertion 2 \n{}'.format(manipulated_story_plts))
+			#print(manipulated_story_plts)
 			fw_plts.write(manipulated_story_plts.strip() + '\n')
 		print('_________________________________________')
 
