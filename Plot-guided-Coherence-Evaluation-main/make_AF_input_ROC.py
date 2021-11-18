@@ -4,12 +4,15 @@ from fairseq.models.bart import BARTModel
 import csv
 import json
 import argparse
+#import fairseq.tasks.translation
 
 
 class AF_Data_Generation():
 
 	def __init__(self, model_path):
-		
+		print("MD Path",model_path)
+		arr = os.listdir(model_path)
+		print(arr)
 		self.bart = BARTModel.from_pretrained(
 		    model_path,
 		    checkpoint_file='checkpoint_best.pt',
