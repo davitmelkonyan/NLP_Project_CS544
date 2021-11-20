@@ -2,6 +2,10 @@ import numpy as np
 
 ###### SARIK'S METHODS ^^^^^^^^ ######
 ######   OUR METHODS   VVVVVVVV #######
+# take entire plot 
+# get antonym for each and join(found wallet floor -> "lost purse ceiling" instead of "found purse wallet floor"
+# insert it to the front and back as a new plot (i.e. neg plot..but..pos plot..and..neg plot)
+
 def insert_antonym_2(self, plots):
 		sents_plots = plots.split('#')
 		new_sents_plots = []
@@ -138,14 +142,33 @@ def contradiction_LogicalReordereing(self, plots, text):
 		if new_sents_plots.startswith('\t'):
 			new_sents_plots = '\t'.join(new_sents_plots.split('\t')[1:])
 		return new_sents_plots
-        
-def contradiction_repetition():
-    # take entire plot 
-    # get antonym for each and join(found wallet floor -> "lost purse ceiling" instead of "found purse wallet floor"
-    # insert it to the front and back as a new plot (i.e. neg plot..but..pos plot..and..neg plot)
-    return
 
-
+def random_deletion(self, plots):
+		sents_plots = plots.split('#')
+		new_sents_plots = []
+		num_plt_to_add = math.ceil((5*len(sents_plots)) / 100)
+		random_plts = np.random.choice(len(sents_plots), size=num_plt_to_add, replace=False) #np.arange(1,len(sents_plots)-1)
+		#print("RANDOM PLOTS: ",random_plts)
+		checkpoint = 0
+		for plot_index in random_plts:
+			new_sents_plots.extend(sents_plots[checkpoint:plot_index])
+			plots = sents_plots[plot_index].strip().split('\t')
+			plots_ = []
+			for p in plots:
+				subplot = p
+				if(" " in p):
+					choice_to_del = np.random.choice(len(p.split(' ')),size=1,replace=False)
+					subplot.remove(choice_to_del)
+				plots_.append(subplot)
+			plots = '\t'.join(plots_)
+			new_sents_plots.append(plots)
+			checkpoint = plot_index+1
+		new_sents_plots.extend(sents_plots[checkpoint:])
+		new_plots = '#'.join(new_sents_plots)	
+		if new_plots.startswith('\t'):
+			new_plots = '\t'.join(new_plots.split('\t')[1:])
+		return new_plots
+ 
 
 def plot_manipulation_loop():
     # do a subset of plot manipulations 
