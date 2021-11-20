@@ -3,7 +3,7 @@ import torch
 import os
 import numpy as np
 import nltk
-import nltk
+from nltk.stem import WordNetLemmatizer
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
 import math
@@ -20,11 +20,12 @@ np.random.seed(100)
 class Plt_manipulations():
 	#class of plots manipulations
 	def __init__(self, COMET_model_file, COMET_sampling_algorithm, device):
-		#opt, state_dict = interactive.load_model_file(COMET_model_file)
-		#self.data_loader, self.text_encoder = interactive.load_data("conceptnet", opt)
-		#n_ctx = self.data_loader.max_e1 + self.data_loader.max_e2 + self.data_loader.max_r
-		#n_vocab = len(self.text_encoder.encoder) + n_ctx
-		#self.comet_model = interactive.make_model(opt, n_vocab, n_ctx, state_dict)
+		opt, state_dict = interactive.load_model_file(COMET_model_file)
+		print("OPT: ",opt)
+		self.data_loader, self.text_encoder = interactive.load_data("conceptnet", opt)
+		n_ctx = self.data_loader.max_e1 + self.data_loader.max_e2 + self.data_loader.max_r
+		n_vocab = len(self.text_encoder.encoder) + n_ctx
+		self.comet_model = interactive.make_model(opt, n_vocab, n_ctx, state_dict)
 		sampling_algorithm = COMET_sampling_algorithm	
 		if args.device != "cpu":
 			cfg.device = int(device)
@@ -33,7 +34,7 @@ class Plt_manipulations():
 			self.comet_model.cuda(cfg.device)
 		else:
 			cfg.device = "cpu"
-		#self.sampler = interactive.set_sampler(opt, sampling_algorithm, self.data_loader)
+		self.sampler = interactive.set_sampler(opt, sampling_algorithm, self.data_loader)
 		fr = open("Data_/conceptnet_antonym.txt", "r")	
 		self.conceptnet_antonyms = fr.readlines()
 		self.plt_antonyms = self.get_antonyms()
@@ -46,9 +47,9 @@ class Plt_manipulations():
 				return pos
 		return None
 	
+	#This function returns whether the ngram includes a verb  
 	def has_verb_tag(self, pos_ngram):
-		#This function returns whether the ngram includes a verb  
-		for token, pos in pos_ngram:
+		for _, pos in pos_ngram:
 			if 'VB' in pos:
 				return pos
 		return None
@@ -138,15 +139,13 @@ class Plt_manipulations():
 		sents_pos = {}
 		for ind, sent in enumerate(sents):
 			sent_tokens = nltk.word_tokenize(sent)
-			pos_sent = nltk.pos_tag(sent_tokens)
-			sents_pos[ind] = pos_sent
+			sents_pos[ind] = nltk.pos_tag(sent_tokens)
 
 		for ind, sent_plots in enumerate(sents_plots):
 			sent_plots = sent_plots.strip().split('\t')
 			for plt in sent_plots:
 				plt = plt.strip()
 				if ' ' not in plt:
-					#what is the POS of the plot in its sentence
 					pos_plt = self.get_pos_plt(plt, sents_pos[ind])
 				else:
 					plt_tokens = nltk.word_tokenize(plt)
@@ -375,9 +374,116 @@ class Plt_manipulations():
 		new_plots = '#'.join(new_sents_plots)	
 		if new_plots.startswith('\t'):
 			new_plots = '\t'.join(new_plots.split('\t')[1:])
-		return new_plots		
+		return new_plots	
+
+	def contradiction_LogicalReordereing(self, plots, text):
+		sents_plots = plots.split('#')[:5]
+		new_sents_plots = sents_plots
+		list_plts_verb,list_plts_verb_tense = [],[]    
+	
+		sents = text.split('</s>')[1:]
+		sents_pos = {i:nltk.pos_tag(nltk.word_tokenize(sent)) for i,sent in enumerate(sents)}
+		for ind, sent_plots in enumerate(sents_plots):
+			sent_plots = sent_plots.strip().split('\t')
+			for plt in sent_plots:
+				plt = plt.strip()
+				pos_plt = None
+				if ' ' not in plt:
+					sentence = sents_pos[ind]
+					sentence_tokens,sentence_tags = [s[0] for s in sentence],[s[1] for s in sentence]
+					try:	pos_plt= sentence_tags[sentence_tokens.index(plt)]
+					except ValueError:	pos_plt=None
+				else:
+					sentence = nltk.pos_tag(nltk.word_tokenize(plt))
+					sentence_tags = [s[1] for s in sentence]
+					has_vb = [pos if('VB' in pos) else None for pos in sentence_tags]
+					has_vb = list(filter(None, has_vb))
+					if(len(has_vb)>0):
+						pos_plt = has_vb[0]		
+				lemmatizer = WordNetLemmatizer()		
+				if pos_plt \
+					and pos_plt in ['VBD', 'VB',  'VBZ', 'VBP']\
+					and (plt in list(self.plt_antonyms.keys()) or lemmatizer.lemmatize(plt,pos="v") in list(self.plt_antonyms.keys()))\
+					and plt not in list_plts_verb :
+						list_plts_verb.append(plt)
+						list_plts_verb_tense.append(pos_plt)
+		if list_plts_verb == []:
+			return plots
+
+		num_plt_to_add = math.ceil((15*len(list_plts_verb)) / 100)
+		random_plts = np.random.choice(list_plts_verb, size=num_plt_to_add, replace=False)
+
+			
+		for random_plt in random_plts:
+			random_plt = random_plt.strip()
+			ind_input_event_text = list_plts_verb.index(random_plt)
+			tense_input_event_text = list_plts_verb_tense[ind_input_event_text]
+			random_plt_tokens = nltk.word_tokenize(random_plt)
+			if len(random_plt_tokens)>1: #get the verb from random_plt and change it to its simple tense  #for an ngram plot it returns all the verbs that exist
+				random_plt_pos = nltk.pos_tag(random_plt_tokens)
+				ind_verb_random_plt_pos = [i if('VB' in pos[1]) else None for i,pos in enumerate(random_plt_pos)]
+				ind_verb_random_plt_pos = list(filter(None, ind_verb_random_plt_pos))
+				if len(ind_verb_random_plt_pos) != 1:#only select a plot from plot_list that has exactly one verb
+					continue
+				random_plt_verb_simple_tense = nlp(random_plt_tokens[ind_verb_random_plt_pos[0]])[0]._.inflect('VB')	
+			else: #single word subplot
+				random_plt_verb_simple_tense = nlp(random_plt_tokens[0])[0]._.inflect('VB')
+
+			print("PRE_OUTS",random_plt)
+			relation = np.random.choice(['HasPrerequisite', 'Causes', 'HasFirstSubevent', 'HasLastSubevent'], size=1, replace=False)[0]
+			antonym_plt = None
+			if(self.plt_antonyms.get(random_plt,None)):
+				antonym_plt = self.plt_antonyms[random_plt]
+			else:
+				antonym_plt = self.plt_antonyms[lemmatizer.lemmatize(random_plt,pos="v")]
+			antonym_plt = np.random.choice(antonym_plt, size=1, replace=False)[0]
+			outputs = interactive.get_conceptnet_sequence(antonym_plt, self.comet_model, self.sampler, self.data_loader, self.text_encoder, relation) #extract concepts that have specified relation with the random_plt (subject plot) in COMET
+			print("OUTS",outputs)
+			for output in outputs[list(outputs.keys())[0]]['beams']:
+				print(output)
+				output_event = ''
+				output = output.replace('your', '')
+				output = output.replace('you', '')
+				
+				if  output != '' and random_plt_verb_simple_tense != None and random_plt_verb_simple_tense not in output:#Object extracted from COMET should not include the verb which is in the subject plot
+					if ' ' not in output and nlp(output)[0]._.inflect('VB') != None: #output is a verb type unigram
+						output_event = nlp(output)[0]._.inflect(tense_input_event_text).strip() #change output to the tense of subject plot
+					elif ' ' in output:
+						output_tokens = nltk.word_tokenize(output)
+						output_pos = nltk.pos_tag(output_tokens)
+						ind_verb_output_pos = [i if('VB' in pos[1]) else None for i,pos in enumerate(output_pos)]
+						ind_verb_output_pos = list(filter(None, ind_verb_output_pos))
+						if ind_verb_output_pos == [] or len(ind_verb_output_pos) != 1: #skip if none of the tokens in the object ngram is a verb or it has more than one verb
+							continue
+						verb_chg_tense = nlp(output_tokens[ind_verb_output_pos[0]])[0]._.inflect(tense_input_event_text) #change the tense of object to be compatible with subject tense
+						if verb_chg_tense == None:
+							continue
+						output_tokens[ind_verb_output_pos[0]] = verb_chg_tense
+						output_event = ' '.join(output_tokens).strip()
+					else:
+						continue								
+					break
+			print("\nOUTPUT EVENT: ",output_event)
+			if output_event == '':
+				continue
+
+			plts = [(s.split('\t').index(random_plt),i) if random_plt in s.split('\t') else None for i,s in enumerate(sents_plots)]
+			plot_ind,ind = list(filter(None, plts))[0][0],list(filter(None, plts))[0][1]
+			#concat_word = np.random.choice(['then', '', 'later', 'subsequently'], size=1)[0]#concat_word = ''
+			if relation == "HasPrerequisite" or relation== "HasFirstSubevent": #if concat_word == '':
+				changing_plots = random_plt  + '\t' + output_event	 #else: changing_plots = random_plt  + ' ' + concat_word + ' ' + output_event	
+			elif relation == "Causes" or relation=="HasLastSubevent": #if concat_word == '':  
+				changing_plots = output_event  + '\t' + random_plt #else:	changing_plots = output_event  + ' '+ concat_word + ' ' + random_plt
+			sents_plots[ind] = '\t'.join(sents_plots[ind].split('\t')[:plot_ind]) + '\t' + changing_plots  + '\t' + '\t'.join(sents_plots[ind].split('\t')[plot_ind+1:])
+			new_sents_plots[ind] = sents_plots[ind]
+
+		new_sents_plots = '#'.join(new_sents_plots)
+		if new_sents_plots.startswith('\t'):
+			new_sents_plots = '\t'.join(new_sents_plots.split('\t')[1:])
+		return new_sents_plots
 
 
+'''
 if __name__=="__main__":
 	print(torch.__version__)
 	parser = argparse.ArgumentParser()
@@ -416,7 +522,7 @@ if __name__=="__main__":
 		for i in range(num_gens):
 			manipulated_story_plts = story_plots
 			num_changes = np.random.choice([1], size=1, replace=False)[0]	
-			ind_technique_apply = np.random.choice([4], size=num_changes, replace=False)
+			ind_technique_apply = np.random.choice([5], size=num_changes, replace=False)
 			print('number of changes {}'.format(num_changes))
 			print('the techniques to apply is {}\n'.format(ind_technique_apply))
 			for tech_ind in ind_technique_apply:
@@ -435,7 +541,11 @@ if __name__=="__main__":
 				elif tech_ind ==4:
 					manipulated_story_plts = plt_changes.insert_antonym_2(manipulated_story_plts)
 					print('after antonym insertion 2 \n{}'.format(manipulated_story_plts))
+				elif tech_ind ==5:
+					manipulated_story_plts = plt_changes.contradiction_LogicalReordereing(manipulated_story_plts, stories[ind])
+					print('after contradiction_LogicalReordereing {}'.format(manipulated_story_plts))
 			#print(manipulated_story_plts)
 			fw_plts.write(manipulated_story_plts.strip() + '\n')
 		print('_________________________________________')
 
+'''
