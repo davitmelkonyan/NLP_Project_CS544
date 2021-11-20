@@ -27,7 +27,7 @@ class Plt_manipulations():
 		n_vocab = len(self.text_encoder.encoder) + n_ctx
 		self.comet_model = interactive.make_model(opt, n_vocab, n_ctx, state_dict)
 		sampling_algorithm = COMET_sampling_algorithm	
-		if args.device != "cpu":
+		if device != "cpu":
 			cfg.device = int(device)
 			cfg.do_gpu = True
 			torch.cuda.set_device(cfg.device)
@@ -254,7 +254,6 @@ class Plt_manipulations():
 			new_sents_plots = '\t'.join(new_sents_plots.split('\t')[1:])
 		return new_sents_plots
 
-
 	def plt_random_insertion(self,plots, set_plots):
 		#This function applies the "Random Substitution" manipulation on the plots 
 		sents_plots = plots.split('#')
@@ -314,7 +313,6 @@ class Plt_manipulations():
 		if new_sents_plots.startswith('\t'):
 			new_sents_plots = '\t'.join(new_sents_plots.split('\t')[1:])
 		return new_sents_plots
-
 
 	def insert_antonym(self, plots):
 		#This function applies the "Contradiction Insertion" manipulation on the plots 
@@ -482,7 +480,31 @@ class Plt_manipulations():
 			new_sents_plots = '\t'.join(new_sents_plots.split('\t')[1:])
 		return new_sents_plots
 
-
+	def random_deletion(self, plots):
+		sents_plots = plots.split('#')
+		new_sents_plots = []
+		num_plt_to_add = math.ceil((5*len(sents_plots)) / 100)
+		random_plts = np.random.choice(len(sents_plots), size=num_plt_to_add, replace=False) #np.arange(1,len(sents_plots)-1)
+		#print("RANDOM PLOTS: ",random_plts)
+		checkpoint = 0
+		for plot_index in random_plts:
+			new_sents_plots.extend(sents_plots[checkpoint:plot_index])
+			plots = sents_plots[plot_index].strip().split('\t')
+			plots_ = []
+			for p in plots:
+				subplot = p
+				if(" " in p):
+					choice_to_del = np.random.choice(len(p.split(' ')),size=1,replace=False)
+					subplot.remove(choice_to_del)
+				plots_.append(subplot)
+			plots = '\t'.join(plots_)
+			new_sents_plots.append(plots)
+			checkpoint = plot_index+1
+		new_sents_plots.extend(sents_plots[checkpoint:])
+		new_plots = '#'.join(new_sents_plots)	
+		if new_plots.startswith('\t'):
+			new_plots = '\t'.join(new_plots.split('\t')[1:])
+		return new_plots	
 '''
 if __name__=="__main__":
 	print(torch.__version__)
