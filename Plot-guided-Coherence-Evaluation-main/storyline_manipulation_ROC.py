@@ -494,8 +494,10 @@ class Plt_manipulations():
 			for p in plots:
 				subplot = p
 				if(" " in p):
-					choice_to_del = np.random.choice(len(p.split(' ')),size=1,replace=False)
-					subplot.remove(choice_to_del)
+					subplot = p.split(" ")
+					choice_to_del = np.random.choice(len(subplot),size=1,replace=False)[0]
+					del subplot[choice_to_del]
+					subplot = " ".join(subplot)
 				plots_.append(subplot)
 			plots = '\t'.join(plots_)
 			new_sents_plots.append(plots)
@@ -505,7 +507,8 @@ class Plt_manipulations():
 		if new_plots.startswith('\t'):
 			new_plots = '\t'.join(new_plots.split('\t')[1:])
 		return new_plots	
-'''
+
+
 if __name__=="__main__":
 	print(torch.__version__)
 	parser = argparse.ArgumentParser()
@@ -544,7 +547,7 @@ if __name__=="__main__":
 		for i in range(num_gens):
 			manipulated_story_plts = story_plots
 			num_changes = np.random.choice([1], size=1, replace=False)[0]	
-			ind_technique_apply = np.random.choice([5], size=num_changes, replace=False)
+			ind_technique_apply = np.random.choice([6], size=num_changes, replace=False)
 			print('number of changes {}'.format(num_changes))
 			print('the techniques to apply is {}\n'.format(ind_technique_apply))
 			for tech_ind in ind_technique_apply:
@@ -566,8 +569,9 @@ if __name__=="__main__":
 				elif tech_ind ==5:
 					manipulated_story_plts = plt_changes.contradiction_LogicalReordereing(manipulated_story_plts, stories[ind])
 					print('after contradiction_LogicalReordereing {}'.format(manipulated_story_plts))
+				elif tech_ind ==6:
+					manipulated_story_plts = plt_changes.random_deletion(manipulated_story_plts)
+					print('after random_deletion:\n{}'.format(manipulated_story_plts))
 			#print(manipulated_story_plts)
 			fw_plts.write(manipulated_story_plts.strip() + '\n')
 		print('_________________________________________')
-
-'''
