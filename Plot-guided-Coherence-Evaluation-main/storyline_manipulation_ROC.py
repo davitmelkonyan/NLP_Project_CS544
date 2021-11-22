@@ -547,7 +547,7 @@ if __name__=="__main__":
 		for i in range(num_gens):
 			manipulated_story_plts = story_plots
 			num_changes = np.random.choice([1], size=1, replace=False)[0]	
-			ind_technique_apply = np.random.choice([6], size=num_changes, replace=False)
+			ind_technique_apply = np.random.choice([5], size=num_changes, replace=False)
 			print('number of changes {}'.format(num_changes))
 			print('the techniques to apply is {}\n'.format(ind_technique_apply))
 			for tech_ind in ind_technique_apply:
