@@ -9,11 +9,13 @@ import argparse
 class AF_Data_Generation():
 
 	def __init__(self, model_path):
-		
+		print("MD Path",model_path)
+		arr = os.listdir(model_path)
+		print(arr)
 		self.bart = BARTModel.from_pretrained(
 		    model_path,
 		    checkpoint_file='checkpoint_best.pt',
-		    data_name_or_path='wp_kw_story-bin'
+		    data_name_or_path=model_path+'wp_kw_story-bin'
 		)
 		self.bart.cuda()
 		self.bart.eval()
@@ -130,12 +132,8 @@ if __name__=="__main__":
 			if plts not in plots_prmpts:
 				plots_prmpts[plts] = line.split('<EOL>')[0].strip()
 
-		fr_gt = open(args.gt_stories, 'r')
-		lines_gt_stories = fr_gt.readlines()
-
-
-		fr = open(args.man_plts, 'r')
-		manipulated_plots = fr.readlines()
+		lines_gt_stories = open(args.gt_stories, 'r').readlines()
+		manipulated_plots = open(args.man_plts, 'r').readlines()
 		manipulated_plots_new = []
 		prompts=[]      
 		lines_gt_new = []
@@ -159,7 +157,7 @@ if __name__=="__main__":
 	
 		#Generate args.num_negative_samples different tsv files each including gt_stories as positive and generated negative stories as implausible ones
 		for ind in range(args.num_negative_samples):
-			af.generate_implausible_stories(args, gt_stories, manipulated_plots, num_sents_gt_stories, ind)
+			af.generate_implausible_stories(args, gt_stories, manipulated_plots, num_sents_gt_stories, ind, file_type)
 
 	af.create_json_AF_input(args, prompts)
 
