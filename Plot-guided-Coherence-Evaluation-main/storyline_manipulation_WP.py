@@ -392,7 +392,7 @@ class Plt_manipulations():
 			for plt in sent_plots:
 				plt = plt.strip()
 				pos_plt = None
-				if ' ' not in plt:
+				if ' ' not in plt and sents_pos:
 					sentence = sents_pos[ind]
 					sentence_tokens,sentence_tags = [s[0] for s in sentence],[s[1] for s in sentence]
 					try:	pos_plt= sentence_tags[sentence_tokens.index(plt)]
