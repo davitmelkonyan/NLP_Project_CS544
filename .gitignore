@@ -4,3 +4,15 @@ Plot-guided-Coherence-Evaluation-main/Models/Ft_Longformer/pytorch_model.bin
 Plot-guided-Coherence-Evaluation-main/Models/Ft_BART_Story_Generator/WP/checkpoint_best.pt
 Plot-guided-Coherence-Evaluation-main/Models/Ft_BART_Story_Generator/ROC/checkpoint_best.pt
 Plot-guided-Coherence-Evaluation-main/Data_/WP/WP_LM/WP_train.target
+base_project/Data_/WP/WP_Eval/WP_train.target
+base_project/Data_/WP/WP_LM/WP_train.target
+base_project/Models/Ft_BART_Story_Generator/WP/checkpoint_best.pt
+base_project/Models/Ft_BART_Story_Generator/ROC/checkpoint_best.pt
+base_project/Models/Ft_Longformer/pytorch_model.bin
+base_project/Models/Ft_RoBERTa/pytorch_model.bin
+base_project/preprocess/WP_train.bpe.target
+base_project/pretrained_models/conceptnet_pretrained_model.pickle
+base_project/pretrained_models/atomic_pretrained_model.pickle
+base_project/bart.large/model.pt
+base_project/Data_/WP/WP_Eval/adv_ManPlts/AF_ManPlts_train.tsv.zip
+base_project/Data_/WP/WP_Eval/adv_ManPlts/AF_ManPlts_train.tsv
