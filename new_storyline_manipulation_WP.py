@@ -217,7 +217,9 @@ class Plt_manipulations():
 			final_plot = '\t'.join(final_plot.split('\t')[1:])
 		return final_plot
 
-
+	def not_capable_of_prerequisite(self,plots):
+		return plots
+	
 	#MODIFICATIONS TO SARIK's methods
 	def insert_antonym_2(self, plots):
 		sents_plots = plots.split('#')
