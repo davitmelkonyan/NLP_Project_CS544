@@ -1,5 +1,6 @@
 import torch
-import os
+#import os
+import random
 import numpy as np
 import nltk
 import nltk
@@ -8,8 +9,8 @@ nltk.download('averaged_perceptron_tagger')
 from nltk.stem import WordNetLemmatizer
 import math
 import spacy
-import pyinflect
-import argparse 
+#import pyinflect
+#import argparse 
 import src.data.data as data
 import src.data.config as cfg
 import src.interactive.functions as interactive
@@ -18,7 +19,7 @@ np.random.seed(100)
 
 
 class Plt_manipulations():
-	def __init__(self, COMET_model_file, COMET_sampling_algorithm, device):
+	def __init__(self, COMET_model_file, COMET_sampling_algorithm, device,ROC_or_WP = False):
 		print("FILE: ",COMET_model_file)
 		opt, state_dict = interactive.load_model_file(COMET_model_file)
 		print("OPT: ",opt)
@@ -35,6 +36,8 @@ class Plt_manipulations():
 		else:
 			cfg.device = "cpu"
 		self.sampler = interactive.set_sampler(opt, sampling_algorithm, self.data_loader)
+		if(ROC_or_WP): self.separator = '#'
+		else: self.separator = '</s>'
 
 		fr = open("/content/drive/My Drive/Colab Notebooks/NLP_Project/base_project/Data_/conceptnet_antonym.txt", "r")	
 		#self.conceptnet_antonyms = fr.readlines()
@@ -49,13 +52,12 @@ class Plt_manipulations():
 				anotomy_word[h] = t[:]
 		self.plt_antonyms = anotomy_word
 
-	
 	#NEW METHODS
 	def change_location(self, plots):
 		location_adverbs = ["about","above","abroad","anywhere","away","along","back","backwards","backward","below","below","behind","upstairs"
 							"down","downstairs","elsewhere","far","here","in","indoors","inside","near","nearby","off","on","out","outside","under",
 							"overseas","somewhere","there","right","left","off","east","west","north","south","southwest","southeast","underground","over"]
-		sents_plots = plots.split('</s>')#,story.split('</s>')
+		sents_plots = plots.split(self.separator)#,story.split('</s>')
 		#assert len(sents) == len(sents_plots)
 		#sents_pos = {i:nltk.pos_tag(nltk.word_tokenize(sent)) for i,sent in enumerate(sents)}
 		outer_adverbs,outer_nouns,modified_plots = [],[],[]
@@ -167,7 +169,7 @@ class Plt_manipulations():
 		return output
 
 	def property_switching(self,plots):
-		sents_plots = plots.split('</s>')#,story.split('</s>')
+		sents_plots = plots.split(self.separator)#,story.split('</s>')
 		nouns,modified_plots = [],[]
 		for ind, sent_plots in enumerate(sents_plots):
 			sent_plots = sent_plots.strip().split('\t')
@@ -189,20 +191,21 @@ class Plt_manipulations():
 			modified_plots.append(all)
 		if len(nouns) == 0: 
 			return plots
+
+		num_plt_to_add = math.ceil((15*len(nouns)) / 100)
+		nouns = random.choices(nouns, k=num_plt_to_add)#, replace=False)
+		#nouns = np.random.choice(nouns, size=num_plt_to_add, replace=False) 
 		properties = []
-		relation = "hasProperty"
+		relation = "HasProperty"
 		for noun in nouns:
-			output = interactive.get_conceptnet_sequence(noun, self.comet_model, self.sampler, self.data_loader, self.text_encoder, relation)
+			#print("NNN: ",noun)
+			output = interactive.get_conceptnet_sequence(noun[0], self.comet_model, self.sampler, self.data_loader, self.text_encoder, relation)
 			output = output[list(output.keys())[0]]['beams'][0]
 			properties.append(output)
-		new_nouns,selected_props = [],[]
-		for noun in nouns:
-			n = noun[0]
-			rand_prop = np.random.choice(properties,1)
-			while(rand_prop in selected_props):
-				rand_prop = np.random.choice(properties,1)
-			selected_props.append(rand_prop)
-			new_word = " ".join([rand_prop,n])
+		new_nouns = []
+		np.random.shuffle(properties)
+		for i,noun in enumerate(nouns):
+			new_word = " ".join([properties[i],noun[0]])
 			new_nouns.append((new_word,noun[1],noun[2],noun[3]))
 		for n in new_nouns:
 			modified_plots[n[1]][n[2]][n[3]] = n[0]
@@ -218,11 +221,56 @@ class Plt_manipulations():
 		return final_plot
 
 	def not_capable_of_prerequisite(self,plots):
-		return plots
+		sents_plots = plots.split(self.separator)#,story.split('</s>')
+		nouns,modified_plots = [],[]
+		for ind, sent_plots in enumerate(sents_plots):
+			sent_plots = sent_plots.strip().split('\t')
+			all = []
+			for ind2,plt in enumerate(sent_plots):
+				nouns_temp = nouns
+				sub_plots = plt.strip().split(' ')
+				all2 = []
+				for ind3,s_p in enumerate(sub_plots):
+					if(s_p ==""):
+						s_p=" "
+					all2.append(s_p)
+					plot_pos = nltk.pos_tag([s_p])[0][1]
+					if(plot_pos.startswith("NN") and s_p != " "):
+						nouns.append((s_p,ind,ind2,ind3)) #
+						break
+				all.append(all2)
+				if(len(nouns)>len(nouns_temp)): break
+			modified_plots.append(all)
+		if len(nouns) == 0: 
+			return plots
+		num_plt_to_add = math.ceil((15*len(nouns)) / 100)
+		print(nouns)
+		#nouns = np.random.choice(nouns, size=num_plt_to_add, replace=False) 
+		nouns = random.choices(nouns, k=num_plt_to_add)#, replace=False)
+		new_nouns = []
+		relation1,relation2 = "CapableOf",'HasPrerequisite'
+		for noun,_,_,_ in nouns:
+			output = interactive.get_conceptnet_sequence(noun, self.comet_model, self.sampler, self.data_loader,self.text_encoder,relation1)
+			output = output[list(output.keys())[0]]['beams'][0]
+			output2 = interactive.get_conceptnet_sequence(output, self.comet_model, self.sampler, self.data_loader, self.text_encoder, relation2)
+			output2 = output2[list(output2.keys())[0]]['beams'][0]
+			new_nouns.append(noun+'can not'+output2)
+		for i,n in enumerate(nouns):
+			modified_plots[n[1]][n[2]][n[3]] = new_nouns[i]
+		out1 = []
+		for mp in modified_plots:
+			out2 = []
+			for mp2 in mp:
+				out2.append(" ".join(mp2))
+			out1.append("\t".join(out2))
+		final_plot = "\t</s>\t".join(out1)
+		if final_plot.startswith('\t'):
+			final_plot = '\t'.join(final_plot.split('\t')[1:])
+		return final_plot
 	
-	#MODIFICATIONS TO SARIK's methods
+	#MODIFICATIONS TO " Ghazarian et. al " methods
 	def insert_antonym_2(self, plots):
-		sents_plots = plots.split('#')
+		sents_plots = plots.split(self.separator)
 		new_sents_plots = []
 
 		plots_with_antonyms = []
@@ -252,29 +300,31 @@ class Plt_manipulations():
 			new_plots = '\t'.join(new_plots.split('\t')[1:])
 		return new_plots
 
-	def contradiction_LogicalReordereing(self, plots, text):
-		sents_plots = plots.split('</s>')
+	def contradiction_LogicalReordereing(self, plots):
+		sents_plots = plots.split(self.separator)
 		new_sents_plots = sents_plots
 		list_plts_verb,list_plts_verb_tense = [],[]    
 	
-		sents = text.split('</s>')
-		sents_pos = {i:nltk.pos_tag(nltk.word_tokenize(sent)) for i,sent in enumerate(sents)}
+		#sents = text.split('</s>')
+		#sents_pos = {i:nltk.pos_tag(nltk.word_tokenize(sent)) for i,sent in enumerate(sents)}
 		for ind, sent_plots in enumerate(sents_plots):
 			sent_plots = sent_plots.strip().split('\t')
-			sentence = sents_pos[ind]
-			sentence_tokens,sentence_tags = [s[0] for s in sentence],[s[1] for s in sentence]
+			#sentence = sents_pos[ind]
+			#sentence_tokens,sentence_tags = [s[0] for s in sentence],[s[1] for s in sentence]
 			for plt in sent_plots:
 				plt = plt.strip()
 				pos_plt = None
-				if ' ' not in plt and sents_pos:
-					try:	pos_plt= sentence_tags[sentence_tokens.index(plt)]
-					except ValueError:	pos_plt=None
-				else: #get POS tags for the plot
-					sentence = nltk.pos_tag(nltk.word_tokenize(plt))
-					sentence_tags = [s[1] for s in sentence]
-					has_vb = [pos for pos in sentence_tags if('VB' in pos) ]
-					if(len(has_vb)>0):
-						pos_plt = has_vb[0]
+				#if ' ' not in plt and sents_pos:
+				#	w = nltk.pos_tag([plt])[0]
+				#	try:	pos_plt= sentence_tags[sentence_tokens.index(plt)]
+				#	except ValueError:	pos_plt=None
+				#	except IndexError:	pos_plt=None
+				#else: #get POS tags for the plot
+				sentence = nltk.pos_tag(nltk.word_tokenize(plt))
+				sentence_tags = [s[1] for s in sentence]
+				has_vb = [pos for pos in sentence_tags if('VB' in pos) ]
+				if(len(has_vb)>0):
+					pos_plt = has_vb[0]
 				'''
 				pos_plt,adverb_token = None,None
 				if ' ' not in plt and sents_pos: #get POS tags from the story
@@ -300,6 +350,7 @@ class Plt_manipulations():
 						list_plts_verb.append(plt)
 						list_plts_verb_tense.append(pos_plt)
 		if list_plts_verb == []:
+			print("NOTHING")
 			return plots
 
 		#candidates = []
@@ -383,7 +434,7 @@ class Plt_manipulations():
 		return new_sents_plots
 
 	def random_deletion(self, plots):
-		sents_plots = plots.split('#')
+		sents_plots = plots.split(self.separator)
 		new_sents_plots = []
 		num_plt_to_add = math.ceil((5*len(sents_plots)) / 100)
 		random_plts = np.random.choice(len(sents_plots), size=num_plt_to_add, replace=False) #np.arange(1,len(sents_plots)-1)
